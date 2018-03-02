@@ -2,6 +2,7 @@ from Buttons import Button
 from Text import Text
 import pygame
 import random
+import time
 import math
 
 pygame.mixer.pre_init(22050,-16, 2, 1024)
@@ -100,18 +101,92 @@ class Enemy(pygame.sprite.Sprite):
 
     def update(self):       
         dest_x,dest_y = self.target.x, self.target.y
-        # This Segment was sourced from: www.arcade.academy.com
-        # As I currently don't know how to do trigonometry
-        # Segment start -------------------
         x_diff = dest_x - self.x
         y_diff = dest_y - self.y
         angle = math.atan2(y_diff, x_diff)
         self.change_x = math.cos(angle) * self.speed
         self.change_y = math.sin(angle) * self.speed
-        # Segment end ---------------------
 
         self.x += self.change_x
         self.y += self.change_y
+            
+        self.rect.center = (self.x, self.y)
+
+class AI(pygame.sprite.Sprite):
+    """AI Class"""
+    def __init__(self,x,y,enemies,wave):
+        self.x = x
+        self.y = y
+        self.wave = wave
+        self.enemies = enemies
+        self.ultra = False
+
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface((50,50))
+        self.image.fill(GREEN)
+        self.rect = self.image.get_rect()
+        self.rect.center = (self.x, self.y)
+
+    def next_wave(self):
+        self.wave += 1
+
+    def update(self):
+        distances = []
+        
+        for enemy in self.enemies:
+            if pygame.sprite.collide_rect(self, enemy):
+                self.enemies.remove(enemy)
+                enemy.kill()
+                self.kill()
+                lose_screen(self.wave)
+
+            distance_x = abs(self.x-enemy.x)
+            distance_y = abs(self.y-enemy.y)
+            distance = math.sqrt((distance_x**2)+(distance_y**2))
+            distances.append(distance)
+            
+        try:
+            index = distances.index(min(distances))
+            self.target = self.enemies[index]
+            if min(distances) < 100:
+                self.ultra = True
+        except:
+            pass
+        
+        self.rect.center = (self.x,self.y)
+
+class AI_Bullet(pygame.sprite.Sprite):
+    """AI Bullet Class"""
+    def __init__(self,px,py,dest_x,dest_y,enemies):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface((25,25))
+        self.image.fill(YELLOW)
+        self.rect = self.image.get_rect()
+        self.rect.center = (px, py)
+        self.enemies = enemies
+        self.x = px
+        self.y = py
+
+        x_diff = dest_x - px
+        y_diff = dest_y - py
+        angle = math.atan2(y_diff, x_diff)
+        self.change_x = math.cos(angle) * 10
+        self.change_y = math.sin(angle) * 10
+
+    def update(self):
+        self.x += self.change_x
+        self.y += self.change_y
+
+        for enemy in self.enemies:
+            if pygame.sprite.collide_rect(self, enemy):
+                self.enemies.remove(enemy)
+                enemy.kill()
+                self.kill()
+    
+        if self.x > 800 or self.x < 0:
+            self.kill()
+        elif self.y > 600 or self.y < 0:
+            self.kill()
             
         self.rect.center = (self.x, self.y)
 
@@ -154,10 +229,12 @@ class Bullet(pygame.sprite.Sprite):
 def menu():
     title_text = "Zombie survival"
     title = Text(display,CENTER_X,CENTER_Y-100,title_text,TITLE,RED)
-    x = CENTER_X-225
+    x = CENTER_X-350
     y = CENTER_Y
-    start_button = Button(display,x,y,200,100,"START",TEXT,GREEN,WHITE)
-    x = CENTER_X
+    start_button = Button(display,x,y,200,100,"PLAY",TEXT,GREEN,WHITE)
+    x = CENTER_X-100
+    start_button2 = Button(display,x,y,200,100,"AI",TEXT,BLUE,WHITE)
+    x = CENTER_X+150
     quit_button = Button(display,x,y,200,100,"QUIT",TEXT,RED,WHITE)
 
     pygame.mixer.music.load("menu_theme.mp3")
@@ -172,6 +249,9 @@ def menu():
         if start_button.clicked():
             pygame.mixer.music.stop()
             return play()
+        elif start_button2.clicked():
+            pygame.mixer.music.stop()
+            return ai_play()
         elif quit_button.clicked():
             pygame.quit()
             quit()
@@ -294,6 +374,62 @@ def play():
         all_sprites.update()
         all_sprites.draw(display)
 
+        pygame.display.update()
+        frame.tick(FPS)
+
+def ai_play():
+    enemies = []
+    wave_number = 0
+    reload = 0
+    number_of_enemies = 1
+
+    ai = AI(400,300,enemies,wave_number)
+    all_sprites = pygame.sprite.Group()
+    all_sprites.add(ai)
+
+    wave_text = "Wave: "+str(wave_number)
+    wave = Text(display,700,25,wave_text,SMALL,DARK_GREEN)
+    pygame.mixer.music.load("zombie_sound.wav")
+    pygame.mixer.music.play(-1)
+
+    while True:
+
+        # EVENTS
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+
+        display.blit(BACKGROUND, [0,0])
+
+        if len(enemies) == 0:
+            wave_number += 1
+            ai.next_wave()
+            wave_text = "Wave: "+str(wave_number)
+            wave.update(wave_text)
+            number_of_enemies += 1
+            for i in range(number_of_enemies):
+                x,y = enemy_spawn()
+                enemy = Enemy(x,y,random.uniform(0.5,2),ai)
+                all_sprites.add(enemy)
+                enemies.append(enemy)
+
+        # Logic
+        all_sprites.update()
+        if ai.ultra == True:
+            ai.ultra = False
+            bullet = AI_Bullet(ai.x,ai.y,ai.target.x,ai.target.y,enemies)
+            all_sprites.add(bullet)
+            
+        elif reload > 10:
+            reload = 0
+            bullet = AI_Bullet(ai.x,ai.y,ai.target.x,ai.target.y,enemies)
+            all_sprites.add(bullet)
+
+        wave.update(wave_text)            
+        all_sprites.draw(display)
+
+        reload += 1
         pygame.display.update()
         frame.tick(FPS)
 
