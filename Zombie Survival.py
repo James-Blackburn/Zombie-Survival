@@ -1,3 +1,4 @@
+#### VERSION 1.2 ####
 from Buttons import Button
 from Text import Text
 import pygame
@@ -21,15 +22,16 @@ ICON = pygame.image.load('icon.png')
 pygame.display.set_icon(ICON)
 frame = pygame.time.Clock()
 FPS = 120
+window_size_checker = []
 
 # Colours
 WHITE = (255,255,255)
 BLACK = (0,0,0)
 RED = (255,0,0)
-GREEN = (0,255,0)
+GREEN = (0,200,0)
 DARK_GREEN = (0,200,0)
 BLUE = (0,0,255)
-YELLOW = (255,255,0)
+YELLOW = (225,225,0)
 TURQUOISE = (0,255,255)
 PINK = (255,0,255)
 
@@ -227,6 +229,7 @@ class Bullet(pygame.sprite.Sprite):
         self.rect.center = (self.x, self.y)
 
 def menu():
+    display.fill(BLACK)
     title_text = "Zombie survival"
     title = Text(display,CENTER_X,CENTER_Y-100,title_text,TITLE,RED)
     x = CENTER_X-350
@@ -236,6 +239,9 @@ def menu():
     start_button2 = Button(display,x,y,200,100,"AI",TEXT,BLUE,WHITE)
     x = CENTER_X+150
     quit_button = Button(display,x,y,200,100,"QUIT",TEXT,RED,WHITE)
+    y = CENTER_Y+110
+    x = CENTER_X-250
+    fullscreen_button = Button(display,x,y,500,100,"TOGGLE FULLSCREEN",TEXT,BLACK,WHITE)
 
     pygame.mixer.music.load("menu_theme.mp3")
     pygame.mixer.music.play(-1)
@@ -245,16 +251,18 @@ def menu():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
-
-        if start_button.clicked():
-            pygame.mixer.music.stop()
-            return play()
-        elif start_button2.clicked():
-            pygame.mixer.music.stop()
-            return ai_play()
-        elif quit_button.clicked():
-            pygame.quit()
-            quit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if start_button.clicked():
+                    pygame.mixer.music.stop()
+                    return play()
+                elif start_button2.clicked():
+                    pygame.mixer.music.stop()
+                    return ai_play()
+                elif fullscreen_button.clicked():
+                    return screen()
+                elif quit_button.clicked():
+                    pygame.quit()
+                    quit()
 
         pygame.display.flip()
 
@@ -268,7 +276,7 @@ def lose_screen(wave_number):
     wave = Text(display,CENTER_X,CENTER_Y-100,wave_text,TITLE,RED)
     x = CENTER_X-225
     y = CENTER_Y
-    start_button = Button(display,x,y,200,100,"RESTART",TEXT,GREEN,WHITE)
+    start_button = Button(display,x,y,200,100,"MENU",TEXT,GREEN,WHITE)
     x = CENTER_X
     quit_button = Button(display,x,y,200,100,"QUIT",TEXT,RED,WHITE)
 
@@ -281,12 +289,13 @@ def lose_screen(wave_number):
                 pygame.quit()
                 quit()
 
-        if start_button.clicked():
-            pygame.mixer.music.stop()
-            play()
-        elif quit_button.clicked():
-            pygame.quit()
-            quit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if start_button.clicked():
+                    pygame.mixer.music.stop()
+                    menu()
+                elif quit_button.clicked():
+                    pygame.quit()
+                    quit()
 
         pygame.display.flip()
 
@@ -306,19 +315,32 @@ def enemy_spawn():
         y = -random.randint(0,300)
     return x,y
 
+def screen():
+    window_size_checker.append(0)
+    if len(window_size_checker)%2 != 0:
+        display = pygame.display.set_mode((WIDTH,HEIGHT),pygame.FULLSCREEN)
+    else:
+        display = pygame.display.set_mode((WIDTH,HEIGHT))
+    menu()
+
 def play():
     enemies = []
     wave_number = 0
+    kill_number = 0
     player = Player(400,300,enemies,wave_number,GREEN)
     all_sprites = pygame.sprite.Group()
     all_sprites.add(player)
     number_of_enemies = 1
+    legacy_enemies = -1
     move_speed = 3
     y_move = 0
     x_move = 0
 
     wave_text = "Wave: "+str(wave_number)
-    wave = Text(display,700,25,wave_text,SMALL,DARK_GREEN)
+    kills_text = "Kills: "+str(kill_number)
+    wave = Text(display,725,25,wave_text,SMALL,DARK_GREEN)
+    kills = Text(display,725,50,kills_text,SMALL,DARK_GREEN)
+    
     pygame.mixer.music.load("zombie_sound.wav")
     pygame.mixer.music.play(-1)
     
@@ -348,6 +370,9 @@ def play():
                 elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
                     y_move = 0
                     x_move = move_speed
+                elif event.key == pygame.K_ESCAPE:
+                    pygame.mixer.music.stop()
+                    menu()
         
             elif event.type == pygame.KEYUP:
                 x_move = 0
@@ -359,6 +384,7 @@ def play():
         player.x += x_move
 
         if len(enemies) == 0:
+            legacy_enemies += number_of_enemies
             wave_number += 1
             player.next_wave()
             wave_text = "Wave: "+str(wave_number)
@@ -370,9 +396,14 @@ def play():
                 all_sprites.add(enemy)
                 enemies.append(enemy)
 
-        wave.update(wave_text)            
+        kill_number = (number_of_enemies+legacy_enemies) - len(enemies)
+        kills_text = "Kills: "+str(kill_number)
+
         all_sprites.update()
         all_sprites.draw(display)
+
+        kills.update(kills_text)
+        wave.update(wave_text)
 
         pygame.display.update()
         frame.tick(FPS)
@@ -380,15 +411,19 @@ def play():
 def ai_play():
     enemies = []
     wave_number = 0
+    kill_number = 0
     reload = 0
     number_of_enemies = 1
+    legacy_enemies = -1
 
     ai = AI(400,300,enemies,wave_number)
     all_sprites = pygame.sprite.Group()
     all_sprites.add(ai)
 
     wave_text = "Wave: "+str(wave_number)
-    wave = Text(display,700,25,wave_text,SMALL,DARK_GREEN)
+    kills_text = "Kills: "+str(kill_number)
+    wave = Text(display,725,25,wave_text,SMALL,DARK_GREEN)
+    kills = Text(display,725,50,kills_text,SMALL,DARK_GREEN)
     pygame.mixer.music.load("zombie_sound.wav")
     pygame.mixer.music.play(-1)
 
@@ -399,10 +434,15 @@ def ai_play():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.mixer.music.stop()
+                    menu()
 
         display.blit(BACKGROUND, [0,0])
 
         if len(enemies) == 0:
+            legacy_enemies += number_of_enemies
             wave_number += 1
             ai.next_wave()
             wave_text = "Wave: "+str(wave_number)
@@ -423,8 +463,14 @@ def ai_play():
             
         elif reload > 10:
             reload = 0
-            bullet = AI_Bullet(ai.x,ai.y,ai.target.x,ai.target.y,enemies)
-            all_sprites.add(bullet)
+            if int(ai.target.x) in range(0,800) and int(ai.target.y) in range(0,600):
+                pygame.mixer.Sound.play(gunshot)
+                bullet = AI_Bullet(ai.x,ai.y,ai.target.x,ai.target.y,enemies)
+                all_sprites.add(bullet)
+
+        kill_number = (number_of_enemies+legacy_enemies) - len(enemies)
+        kills_text = "Kills: "+str(kill_number)
+        kills.update(kills_text)
 
         wave.update(wave_text)            
         all_sprites.draw(display)
@@ -435,3 +481,4 @@ def ai_play():
 
 menu()
         
+
