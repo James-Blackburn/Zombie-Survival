@@ -1,4 +1,4 @@
-#### VERSION 1.2 ####
+#### VERSION 1.3 ####
 from Buttons import Button
 from Text import Text
 import pygame
@@ -9,20 +9,7 @@ import math
 pygame.mixer.pre_init(22050,-16, 2, 1024)
 pygame.init()
 
-# Display
-WIDTH = 800
-HEIGHT = 600
-CENTER_X = int(WIDTH/2)
-CENTER_Y = int(HEIGHT/2)
-display = pygame.display.set_mode((WIDTH,HEIGHT))
-pygame.display.set_caption("Zombie Survival")
-BACKGROUND = pygame.image.load("Background.png").convert()
-LOSE_BACKGROUND = pygame.image.load("RIP.png").convert()
-ICON = pygame.image.load('icon.png')
-pygame.display.set_icon(ICON)
-frame = pygame.time.Clock()
-FPS = 120
-window_size_checker = []
+# Setup ---------- Edit anything here ----------------------
 
 # Colours
 WHITE = (255,255,255)
@@ -35,10 +22,38 @@ YELLOW = (225,225,0)
 TURQUOISE = (0,255,255)
 PINK = (255,0,255)
 
+# Game Variables/Constants
+NAME = "Zombie Survival"
+FPS = 120
+WIDTH = 800
+HEIGHT = 600
+PLAYER_SIZE = 50
+PLAYER_COLOUR = (0,200,0) #RGB value
+BULLET_SPEED = 10
+AI_RELOAD_RATE = 10
+DEATH_MESSAGE = "YOU DIED"
+
 # Fonts
 TITLE = pygame.font.SysFont("AgencyFB", 100)
 TEXT = pygame.font.SysFont("Arial", 50)
 SMALL = pygame.font.SysFont("Arial", 25)
+
+# Stop Editing ---------------------------------------------
+
+
+# Display
+CENTER_X = int(WIDTH/2)
+CENTER_Y = int(HEIGHT/2)
+display = pygame.display.set_mode((WIDTH,HEIGHT))
+pygame.display.set_caption(NAME)
+BACKGROUND = pygame.image.load("Background.png").convert()
+BACKGROUND = pygame.transform.scale(BACKGROUND, (WIDTH, HEIGHT))
+LOSE_BACKGROUND = pygame.image.load("RIP.png").convert()
+LOSE_BACKGROUND = pygame.transform.scale(LOSE_BACKGROUND, (WIDTH, HEIGHT))
+ICON = pygame.image.load('icon.png')
+pygame.display.set_icon(ICON)
+frame = pygame.time.Clock()
+window_size_checker = []
 
 # Sounds
 gunshot = pygame.mixer.Sound("gunshot.wav")
@@ -54,7 +69,7 @@ class Player(pygame.sprite.Sprite):
         self.enemies = enemies
 
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.Surface((50,50))
+        self.image = pygame.Surface((PLAYER_SIZE,PLAYER_SIZE))
         self.image.fill(colour)
         self.rect = self.image.get_rect()
         self.rect.center = (self.x, self.y)
@@ -71,13 +86,13 @@ class Player(pygame.sprite.Sprite):
                 self.kill()
                 lose_screen(self.wave)
                 
-        if self.x > 800:
-            self.x = 800
+        if self.x > WIDTH:
+            self.x = WIDTH
         elif self.x < 0:
             self.x = 0
 
-        if self.y > 600:
-            self.y = 600
+        if self.y > HEIGHT:
+            self.y = HEIGHT
         elif self.y < 0:
             self.y = 0
 
@@ -172,8 +187,8 @@ class AI_Bullet(pygame.sprite.Sprite):
         x_diff = dest_x - px
         y_diff = dest_y - py
         angle = math.atan2(y_diff, x_diff)
-        self.change_x = math.cos(angle) * 10
-        self.change_y = math.sin(angle) * 10
+        self.change_x = math.cos(angle) * BULLET_SPEED
+        self.change_y = math.sin(angle) * BULLET_SPEED
 
     def update(self):
         self.x += self.change_x
@@ -185,9 +200,9 @@ class AI_Bullet(pygame.sprite.Sprite):
                 enemy.kill()
                 self.kill()
     
-        if self.x > 800 or self.x < 0:
+        if self.x > WIDTH or self.x < 0:
             self.kill()
-        elif self.y > 600 or self.y < 0:
+        elif self.y > HEIGHT or self.y < 0:
             self.kill()
             
         self.rect.center = (self.x, self.y)
@@ -208,8 +223,8 @@ class Bullet(pygame.sprite.Sprite):
         x_diff = dest_x - px
         y_diff = dest_y - py
         angle = math.atan2(y_diff, x_diff)
-        self.change_x = math.cos(angle) * 10
-        self.change_y = math.sin(angle) * 10
+        self.change_x = math.cos(angle) * BULLET_SPEED
+        self.change_y = math.sin(angle) * BULLET_SPEED
 
     def update(self):
         self.x += self.change_x
@@ -221,16 +236,16 @@ class Bullet(pygame.sprite.Sprite):
                 enemy.kill()
                 self.kill()
     
-        if self.x > 800 or self.x < 0:
+        if self.x > WIDTH or self.x < 0:
             self.kill()
-        elif self.y > 600 or self.y < 0:
+        elif self.y > HEIGHT or self.y < 0:
             self.kill()
             
         self.rect.center = (self.x, self.y)
 
 def menu():
     display.fill(BLACK)
-    title_text = "Zombie survival"
+    title_text = NAME
     title = Text(display,CENTER_X,CENTER_Y-100,title_text,TITLE,RED)
     x = CENTER_X-350
     y = CENTER_Y
@@ -270,7 +285,7 @@ def lose_screen(wave_number):
     pygame.mixer.music.stop()
     pygame.mixer.Sound.play(lose_sound)
     display.blit(LOSE_BACKGROUND, [0,0])
-    title_text = "YOU DIED"
+    title_text = DEATH_MESSAGE
     title = Text(display,CENTER_X,CENTER_Y-200,title_text,TITLE,RED)
     wave_text = "You Got To Wave: "+str(wave_number)
     wave = Text(display,CENTER_X,CENTER_Y-100,wave_text,TITLE,RED)
@@ -318,7 +333,7 @@ def enemy_spawn():
 def screen():
     window_size_checker.append(0)
     if len(window_size_checker)%2 != 0:
-        display = pygame.display.set_mode((WIDTH,HEIGHT),pygame.FULLSCREEN)
+        display = pygame.display.set_mode((WIDTH,HEIGHT),pygame.FULLSCREEN)      
     else:
         display = pygame.display.set_mode((WIDTH,HEIGHT))
     menu()
@@ -327,7 +342,7 @@ def play():
     enemies = []
     wave_number = 0
     kill_number = 0
-    player = Player(400,300,enemies,wave_number,GREEN)
+    player = Player(400,300,enemies,wave_number,PLAYER_COLOUR)
     all_sprites = pygame.sprite.Group()
     all_sprites.add(player)
     number_of_enemies = 1
@@ -461,7 +476,7 @@ def ai_play():
             bullet = AI_Bullet(ai.x,ai.y,ai.target.x,ai.target.y,enemies)
             all_sprites.add(bullet)
             
-        elif reload > 10:
+        elif reload > AI_RELOAD_RATE:
             reload = 0
             if int(ai.target.x) in range(0,800) and int(ai.target.y) in range(0,600):
                 pygame.mixer.Sound.play(gunshot)
@@ -481,4 +496,3 @@ def ai_play():
 
 menu()
         
-
